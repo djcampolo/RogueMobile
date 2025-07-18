@@ -1,67 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mobile ASCII Rogue</title>
-  <style>
-    body {
-      background: black;
-      color: lightgreen;
-      font-family: monospace;
-      margin: 0;
-      overflow: hidden;
-      user-select: none;
-    }
-    #game {
-      line-height: 1.1;
-      font-size: 16px;
-      white-space: pre;
-    }
-    #info {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-    }
-    #inventory {
-      position: absolute;
-      bottom: 150px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    button {
-      font-size: 14px;
-      padding: 8px;
-      background: #222;
-      color: lightgreen;
-      border: 1px solid #555;
-      border-radius: 6px;
-    }
-    #stick {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 120px;
-      height: 120px;
-      border: 2px solid #555;
-      border-radius: 50%;
-      touch-action: none;
-    }
-    #knob {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%,-50%);
-      width: 40px;
-      height: 40px;
-      background: #222;
-      border: 2px solid #888;
-      border-radius: 50%;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -74,187 +16,116 @@
   <button onclick="eatFood()">Eat Food</button>
 </div>
 
-<div id="stick"><div id="knob"></div></div>
+<div id="dpad">
+  <button onclick="move(0, -1)">↑</button>
+  <div>
+    <button onclick="move(-1, 0)">←</button>
+    <button onclick="move(1, 0)">→</button>
+  </div>
+  <button onclick="move(0, 1)">↓</button>
+</div>
 
 <script>
-const W = 60, H = 25;
-const MIN_ROOM = 4, MAX_ROOM = 8;
-let map = [], rooms = [], enemies = [], items = [];
-let player = {x:0,y:0,hp:10,hunger:100,inv:[],sword:false};
-let stairs, level=1;
+  let W, H;
+  let map = [], rooms = [], enemies = [], items = [];
+  let player = {x:0,y:0,hp:10,hunger:100,inv:[],sword:false};
+  let stairs, level=1;
 
-function rand(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+  function rand(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
 
-function init() {
-  map = Array.from({length:H}, ()=>Array(W).fill(' '));
-  rooms = [], enemies = [], items = [];
-  // make rooms
-  for (let i=0;i<10;i++) {
-    let rw=rand(MIN_ROOM,MAX_ROOM), rh=rand(MIN_ROOM,MAX_ROOM);
-    let rx=rand(1,W-rw-2), ry=rand(1,H-rh-2);
-    if(rooms.every(r => rx>r.x+r.w || r.x>rx+rw || ry>r.y+r.h || r.y>ry+rh)) {
-      rooms.push({x:rx,y:ry,w:rw,h:rh});
-      for(let y=ry;y<ry+rh;y++)
-        for(let x=rx;x<rx+rw;x++) map[y][x]='.';
-      if(rooms.length>1){
-        let pr=rooms[rooms.length-2];
-        carve(pr.x+pr.w/2|0,pr.y+pr.h/2|0,rx+rw/2|0,ry+rh/2|0);
+  function calculateMapSize() {
+    // These values might need tweaking based on actual font size and screen real estate
+    const charWidthEstimate = 0.035 * window.innerWidth; // Assuming 3.5vw font size
+    const charHeightEstimate = 0.05 * window.innerHeight; // A rough estimate for line height
+
+    W = Math.floor(window.innerWidth / charWidthEstimate);
+    H = Math.floor((window.innerHeight * 0.7) / charHeightEstimate); // Use about 70% of height for the map
+    if (W < 20) W = 20; // Minimum width
+    if (H < 15) H = 15; // Minimum height
+  }
+
+  function initGame() {
+    calculateMapSize();
+    // (You'd have your map generation, room creation, enemy placement here)
+    // For now, let's just create a simple map
+    map = Array(H).fill(0).map(() => Array(W).fill('#')); // Fill with walls
+    // Place player in a random spot (for demonstration)
+    player.x = rand(1, W - 2);
+    player.y = rand(1, H - 2);
+    map[player.y][player.x] = '@'; // Player character
+    updateDisplay();
+    updateInfo();
+  }
+
+  function updateDisplay() {
+    let displayMap = map.map(row => [...row]); // Create a copy to modify for display
+    displayMap[player.y][player.x] = '@'; // Ensure player is drawn
+
+    // Draw enemies (simple example)
+    enemies.forEach(e => {
+      if (e.hp > 0) {
+        displayMap[e.y][e.x] = 'E'; // Example enemy char
       }
+    });
+
+    // Draw items (simple example)
+    items.forEach(item => {
+      displayMap[item.y][item.x] = item.char; // Example item char (e.g., 'P' for potion)
+    });
+
+
+    // Center the map in the display
+    let gameDiv = document.getElementById('game');
+    let mapString = displayMap.map(row => row.join('')).join('\n');
+    gameDiv.textContent = mapString;
+  }
+
+  function updateInfo() {
+    let infoDiv = document.getElementById('info');
+    infoDiv.textContent = `Level: ${level} | HP: ${player.hp} | Hunger: ${player.hunger} | Sword: ${player.sword ? '✓' : '✗'}`;
+  }
+
+  function move(dx, dy) {
+    let newX = player.x + dx;
+    let newY = player.y + dy;
+
+    // Basic boundary and wall collision
+    if (newX >= 0 && newX < W && newY >= 0 && newY < H && map[newY][newX] !== '#') {
+      player.x = newX;
+      player.y = newY;
+      // You'd add logic here for:
+      // - Picking up items
+      // - Attacking enemies
+      // - Going down stairs
+      // - Hunger reduction
+      // - Enemy movement
+      // - Etc.
+      updateDisplay();
+      updateInfo();
     }
   }
-  // player start
-  let fr=rooms[0];
-  player.x = fr.x+fr.w/2|0;
-  player.y = fr.y+fr.h/2|0;
-  player.hp = 10;
-  player.hunger = 100;
-  // stairs
-  let lr=rooms[rooms.length-1];
-  stairs = {x: lr.x+rand(0,lr.w-1), y: lr.y+rand(0,lr.h-1)};
-  map[stairs.y][stairs.x] = '>';
-  // items
-  for (let i=0;i<8;i++) {
-    let r = rooms[rand(0,rooms.length-1)];
-    let ix = rand(r.x, r.x+r.w-1), iy = rand(r.y, r.y+r.h-1);
-    let ch;
-    let roll = Math.random();
-    if (roll < 0.33) ch = '!';
-    else if (roll < 0.66) ch = '†';
-    else ch = '%'; // food
-    items.push({x:ix,y:iy,type:ch});
+
+  function usePotion() {
+    alert("Using a potion! (Logic to be implemented)");
+    // Example: player.hp = Math.min(10, player.hp + 5);
+    updateInfo();
   }
-  // enemies
-  for (let i=0;i<rooms.length-2;i++) {
-    let r = rooms[i];
-    enemies.push({x:rand(r.x,r.x+r.w-1),y:rand(r.y,r.y+r.h-1),hp:3});
+
+  function equipSword() {
+    player.sword = !player.sword; // Toggle sword
+    alert(`Sword ${player.sword ? 'equipped' : 'unequipped'}!`);
+    updateInfo();
   }
-  draw();
-}
 
-function carve(x1,y1,x2,y2){
-  let x=x1, y=y1;
-  while(x!=x2) { map[y][x]='.'; x+=x<x2?1:-1; }
-  while(y!=y2) { map[y][x]='.'; y+=y<y2?1:-1; }
-}
-
-function draw() {
-  let dmap = map.map(r=>r.slice());
-  dmap[stairs.y][stairs.x] = '>';
-  items.forEach(i=>dmap[i.y][i.x]=i.type);
-  enemies.forEach(e=>dmap[e.y][e.x]='E');
-  dmap[player.y][player.x]='@';
-  document.getElementById('game').textContent = dmap.map(r=>r.join('')).join('\n');
-  document.getElementById('info').textContent =
-    `Level: ${level} | HP: ${player.hp} | Hunger: ${player.hunger} | Sword: ${player.sword ? '✓' : '✗'}`;
-}
-
-function move(dx,dy){
-  let nx = player.x+dx, ny = player.y+dy;
-  if(map[ny]?.[nx] !== '.') return;
-  // hunger effect
-  player.hunger--;
-  if(player.hunger <= 0){
-    player.hp--;
-    if(player.hp <= 0) return death();
+  function eatFood() {
+    alert("Eating food! (Logic to be implemented)");
+    // Example: player.hunger = Math.min(100, player.hunger + 20);
+    updateInfo();
   }
-  // enemy check
-  let enemy = enemies.find(e=>e.x===nx&&e.y===ny);
-  if(enemy){
-    let dmg = player.sword ? 2 : 1;
-    enemy.hp -= dmg;
-    if(enemy.hp<=0){
-      enemies = enemies.filter(e=>e!==enemy);
-    }
-  } else {
-    player.x = nx; player.y = ny;
-    // item pickup
-    let i = items.find(it=>it.x===nx&&it.y===ny);
-    if(i){
-      player.inv.push(i.type);
-      items = items.filter(it=>it!==i);
-    }
-    // stairs
-    if(nx===stairs.x && ny===stairs.y){
-      level++; init(); return;
-    }
-  }
-  // enemy turn
-  enemies.forEach(e=>{
-    let dx = player.x - e.x, dy = player.y - e.y;
-    let mx = Math.abs(dx)>Math.abs(dy) ? Math.sign(dx) : 0;
-    let my = Math.abs(dy)>=Math.abs(dx) ? Math.sign(dy) : 0;
-    let tx = e.x+mx, ty = e.y+my;
-    if(tx===player.x && ty===player.y){
-      player.hp--;
-      if(player.hp<=0) return death();
-    } else if(map[ty][tx]==='.' && !enemies.find(en=>en.x===tx&&en.y===ty)){
-      e.x=tx; e.y=ty;
-    }
-  });
-  draw();
-}
 
-function death(){
-  alert("You died from wounds or starvation!\nRefresh to try again.");
-  player.hp = 0;
-  draw();
-}
-
-function usePotion() {
-  let i = player.inv.indexOf('!');
-  if(i>=0){
-    player.inv.splice(i,1);
-    player.hp = Math.min(player.hp+5,10);
-    draw();
-  }
-}
-
-function equipSword() {
-  let i = player.inv.indexOf('†');
-  if(i>=0){
-    player.inv.splice(i,1);
-    player.sword = true;
-    draw();
-  }
-}
-
-function eatFood() {
-  let i = player.inv.indexOf('%');
-  if(i>=0){
-    player.inv.splice(i,1);
-    player.hunger = Math.min(player.hunger + 30, 100);
-    draw();
-  }
-}
-
-// joystick
-let stick = document.getElementById('stick'),
-    knob = document.getElementById('knob'),
-    center = {x:stick.clientWidth/2, y:stick.clientHeight/2};
-
-stick.addEventListener('pointerdown', sDown);
-stick.addEventListener('pointermove', sMove);
-stick.addEventListener('pointerup', sUp);
-stick.addEventListener('pointerleave', sUp);
-
-function sDown(e){ stick.setPointerCapture(e.pointerId); sMove(e); }
-function sMove(e){
-  let rect=stick.getBoundingClientRect();
-  let x = e.clientX-rect.left, y=e.clientY-rect.top;
-  let dx = x-center.x, dy = y-center.y;
-  let dist=Math.hypot(dx,dy);
-  if(dist>center.x) { dx*=center.x/dist; dy*=center.x/dist; }
-  knob.style.transform = `translate(${dx}px,${dy}px)`;
-  if(dist>20){
-    let mx = Math.abs(dx)>Math.abs(dy)?Math.sign(dx):0;
-    let my = Math.abs(dy)>=Math.abs(dx)?Math.sign(dy):0;
-    move(mx,my);
-  }
-}
-function sUp(e){ knob.style.transform='translate(-50%,-50%)'; }
-
-init();
+  // Initialize the game when the page loads
+  window.onload = initGame;
+  window.onresize = initGame; // Recalculate map size on resize
 </script>
-
 </body>
 </html>
