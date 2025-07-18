@@ -3,52 +3,61 @@ body {
   color: lightgreen;
   font-family: monospace;
   margin: 0;
-  overflow: hidden;
-  user-select: none;
+  overflow: hidden; /* Prevent scrollbars */
+  user-select: none; /* Disable text selection */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  height: 100vh; /* Full viewport height */
+  padding-top: 10px; /* Space from the top */
+  box-sizing: border-box; /* Include padding in height */
 }
-#game {
-  line-height: 1.1;
-  font-size: 3.5vw;
-  white-space: pre;
-  text-align: center;
-  margin-top: 10px;
-}
+
 #info {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  font-size: 4vw;
+  width: 90%; /* Take up most of the width */
+  text-align: left;
+  font-size: 4vw; /* Responsive font size */
+  margin-bottom: 10px;
+  color: lightblue; /* Different color for info */
 }
-#inventory {
-  position: absolute;
-  top: 65%;
-  left: 50%;
-  transform: translateX(-50%);
+
+#game {
+  line-height: 1.1; /* Adjust line spacing for ASCII art */
+  font-size: 3.5vw; /* Main game map font size */
+  white-space: pre; /* Preserve whitespace for ASCII art */
+  text-align: center; /* Center the map */
+  flex-grow: 1; /* Allows the game map to take available vertical space */
+  overflow: hidden; /* Hide any overflow if map is too big */
+  padding: 5px; /* Little padding around the map */
+  background-color: #111; /* Slightly darker background for the map area */
+  border-radius: 5px;
+}
+
+#inventory-controls {
+  margin-top: 15px;
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
-  z-index: 10;
+  flex-wrap: wrap; /* Allow buttons to wrap */
+  justify-content: center; /* Center buttons */
+  width: 90%; /* Control button area width */
 }
+
 button {
   font-size: 4vw;
-  padding: 6px;
+  padding: 6px 12px;
   background: #222;
   color: lightgreen;
   border: 1px solid #555;
   border-radius: 6px;
+  cursor: pointer; /* Indicate clickable */
+  transition: background 0.2s, color 0.2s; /* Smooth hover effect */
 }
-#dpad {
-  position: absolute;
-  top: 80%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  z-index: 10;
+
+button:hover {
+  background: #444;
+  color: white;
 }
-#dpad > div {
-  display: flex;
-  gap: 20px;
-}
+
+/* Optional: Styles for mobile D-pad if you add one later */
+/* For now, we rely on keyboard input */
