@@ -1,79 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Free Premium App</title>
+  <title>Rogue (Mobile HTML Port)</title>
   <style>
     body {
       margin: 0;
-      background: #000;
-      font-family: sans-serif;
-      color: #0f0;
+      background: black;
+      color: lime;
+      font-family: monospace;
+      overflow: hidden;
     }
-    .container {
-      padding: 20px;
-      text-align: center;
-    }
-    h1 {
-      font-size: 1.8em;
-      color: #ff0000;
-      text-shadow: 0 0 5px #f00;
-    }
-    .logo {
-      font-size: 2em;
-      color: yellow;
-      margin-bottom: 10px;
-    }
-    .warning {
-      background: #330000;
-      color: #ff6666;
+    #game {
+      width: 100vw;
+      height: 60vh;
+      white-space: pre;
+      font-size: 4vw;
+      line-height: 1.2;
+      overflow: hidden;
       padding: 10px;
-      border: 2px dashed red;
-      margin-bottom: 15px;
+      box-sizing: border-box;
     }
-    button {
-      background: linear-gradient(to right, #ff0, #f90);
-      border: none;
-      padding: 15px 30px;
-      font-size: 1em;
-      font-weight: bold;
-      border-radius: 10px;
-      margin-top: 20px;
-      box-shadow: 0 0 10px #ff0;
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 10px;
     }
-    .glitch {
-      font-size: 1.2em;
-      animation: glitch 1s infinite;
+    .btn {
+      background: #222;
+      color: lime;
+      border: 1px solid lime;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      font-size: 5vw;
+      user-select: none;
     }
-    @keyframes glitch {
-      0% { color: #0f0; transform: translateX(0); }
-      20% { color: #f0f; transform: translateX(-1px); }
-      40% { color: #0ff; transform: translateX(1px); }
-      60% { color: #f00; transform: translateX(-2px); }
-      80% { color: #fff; transform: translateX(2px); }
-      100% { color: #0f0; transform: translateX(0); }
-    }
-    footer {
-      font-size: 0.8em;
-      color: #555;
-      margin-top: 40px;
+    .btn:active {
+      background: lime;
+      color: black;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="logo">Premiium++</div>
-    <h1>INSTALL REQUIRED!</h1>
-    <div class="warning">
-      ⚠️ Your device is not protected.<br>
-      Tap below to secure access.
-    </div>
-    <div class="glitch">🔓 UNLOCK ALL FEATURES NOW</div>
-    <button>Download .APK (v3.9 beta)</button>
-    <footer>
-      Not affiliated with Apple or Google. <br>
-      <i>© 2025 RogueSoft Inc.</i>
-    </footer>
-  </div>
+
+<div id="game">
+@.........
+.#..##....
+.#..#.....
+.####.....
+..........
+..........
+</div>
+
+<div id="controls">
+  <div></div>
+  <div class="btn" onclick="move(0,-1)">↑</div>
+  <div></div>
+  <div class="btn" onclick="move(-1,0)">←</div>
+  <div class="btn" onclick="move(0,1)">↓</div>
+  <div class="btn" onclick="move(1,0)">→</div>
+</div>
+
+<script>
+  const gameEl = document.getElementById('game');
+  let map = [
+    ['@','.','.','.','.','.','.','.','.','.'],
+    ['.','#','.','.','#','#','.','.','.','.'],
+    ['.','#','.','.','#','.','.','.','.','.'],
+    ['.','#','#','#','#','.','.','.','.','.'],
+    ['.','.','.','.','.','.','.','.','.','.'],
+    ['.','.','.','.','.','.','.','.','.','.']
+  ];
+  let player = { x: 0, y: 0 };
+
+  function render() {
+    let output = '';
+    for (let y = 0; y < map.length; y++) {
+      for (let x = 0; x < map[0].length; x++) {
+        output += map[y][x];
+      }
+      output += '\\n';
+    }
+    gameEl.textContent = output;
+  }
+
+  function move(dx, dy) {
+    let nx = player.x + dx;
+    let ny = player.y + dy;
+    if (map[ny] && map[ny][nx] && map[ny][nx] !== '#') {
+      map[player.y][player.x] = '.';
+      player.x = nx;
+      player.y = ny;
+      map[player.y][player.x] = '@';
+      render();
+    }
+  }
+
+  render();
+</script>
+
 </body>
 </html>
