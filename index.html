@@ -1,105 +1,101 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rogue (Mobile HTML Port)</title>
+  <title>Mobile Rogue</title>
   <style>
     body {
-      margin: 0;
-      background: black;
-      color: lime;
+      background: #000;
+      color: #0f0;
       font-family: monospace;
+      margin: 0;
       overflow: hidden;
     }
-    #game {
-      width: 100vw;
-      height: 60vh;
-      white-space: pre;
-      font-size: 4vw;
-      line-height: 1.2;
-      overflow: hidden;
-      padding: 10px;
-      box-sizing: border-box;
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #111;
     }
-    #controls {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
       gap: 10px;
-      padding: 10px;
+      margin-top: 10px;
     }
     .btn {
-      background: #222;
-      color: lime;
-      border: 1px solid lime;
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      background: #333;
+      color: white;
+      border: 2px solid #555;
       border-radius: 8px;
-      padding: 10px;
-      text-align: center;
-      font-size: 5vw;
-      user-select: none;
-    }
-    .btn:active {
-      background: lime;
-      color: black;
     }
   </style>
 </head>
 <body>
 
-<div id="game">
-@.........
-.#..##....
-.#..#.....
-.####.....
-..........
-..........
-</div>
+<canvas id="game" width="320" height="320"></canvas>
 
-<div id="controls">
-  <div></div>
-  <div class="btn" onclick="move(0,-1)">↑</div>
-  <div></div>
-  <div class="btn" onclick="move(-1,0)">←</div>
-  <div class="btn" onclick="move(0,1)">↓</div>
-  <div class="btn" onclick="move(1,0)">→</div>
+<div class="controls">
+  <button class="btn" onclick="move(0,-1)">↑</button>
+  <button class="btn" onclick="move(-1,0)">←</button>
+  <button class="btn" onclick="move(1,0)">→</button>
+  <button class="btn" onclick="move(0,1)">↓</button>
 </div>
 
 <script>
-  const gameEl = document.getElementById('game');
-  let map = [
-    ['@','.','.','.','.','.','.','.','.','.'],
-    ['.','#','.','.','#','#','.','.','.','.'],
-    ['.','#','.','.','#','.','.','.','.','.'],
-    ['.','#','#','#','#','.','.','.','.','.'],
-    ['.','.','.','.','.','.','.','.','.','.'],
-    ['.','.','.','.','.','.','.','.','.','.']
-  ];
-  let player = { x: 0, y: 0 };
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-  function render() {
-    let output = '';
-    for (let y = 0; y < map.length; y++) {
-      for (let x = 0; x < map[0].length; x++) {
-        output += map[y][x];
+const TILE_SIZE = 16;
+const MAP_WIDTH = 20;
+const MAP_HEIGHT = 20;
+
+let map = [];
+let player = {x: 1, y: 1};
+
+function createMap() {
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    map[y] = [];
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      // Border walls
+      if (x === 0 || y === 0 || x === MAP_WIDTH-1 || y === MAP_HEIGHT-1 || Math.random() < 0.1) {
+        map[y][x] = "#";
+      } else {
+        map[y][x] = ".";
       }
-      output += '\\n';
-    }
-    gameEl.textContent = output;
-  }
-
-  function move(dx, dy) {
-    let nx = player.x + dx;
-    let ny = player.y + dy;
-    if (map[ny] && map[ny][nx] && map[ny][nx] !== '#') {
-      map[player.y][player.x] = '.';
-      player.x = nx;
-      player.y = ny;
-      map[player.y][player.x] = '@';
-      render();
     }
   }
+  map[player.y][player.x] = "@";
+}
 
-  render();
+function drawMap() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      let ch = map[y][x];
+      ctx.fillStyle = ch === "#" ? "#444" : (ch === "@" ? "#0f0" : "#999");
+      ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+  }
+}
+
+function move(dx, dy) {
+  const newX = player.x + dx;
+  const newY = player.y + dy;
+  if (map[newY][newX] === ".") {
+    map[player.y][player.x] = ".";
+    player.x = newX;
+    player.y = newY;
+    map[player.y][player.x] = "@";
+    drawMap();
+  }
+}
+
+createMap();
+drawMap();
 </script>
 
 </body>
