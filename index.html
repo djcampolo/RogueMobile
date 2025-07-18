@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mobile ASCII Rogue</title>
+  <title>ASCII Dungeon Crawler</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -10,122 +10,370 @@
 <div id="info">Level: 1 | HP: 10 | Hunger: 100 | Sword: ✗</div>
 <pre id="game"></pre>
 
-<div id="inventory">
-  <button onclick="usePotion()">Use Potion</button>
-  <button onclick="equipSword()">Equip Sword</button>
-  <button onclick="eatFood()">Eat Food</button>
-</div>
-
-<div id="dpad">
-  <button onclick="move(0, -1)">↑</button>
-  <div>
-    <button onclick="move(-1, 0)">←</button>
-    <button onclick="move(1, 0)">→</button>
-  </div>
-  <button onclick="move(0, 1)">↓</button>
+<div id="inventory-controls">
+  <button onclick="useItem('potion')">Use Potion</button>
+  <button onclick="useItem('food')">Eat Food</button>
+  <button onclick="toggleEquipSword()">Toggle Sword</button>
 </div>
 
 <script>
-  let W, H;
-  let map = [], rooms = [], enemies = [], items = [];
-  let player = {x:0,y:0,hp:10,hunger:100,inv:[],sword:false};
-  let stairs, level=1;
+  // Game Configuration
+  const TILE_EMPTY = '.';
+  const TILE_WALL = '#';
+  const TILE_PLAYER = '@';
+  const TILE_POTION = 'P';
+  const TILE_FOOD = 'F';
+  const TILE_SWORD = 'S';
+  const TILE_STAIRS = '>';
 
-  function rand(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+  // Game State Variables
+  let W, H; // Map dimensions
+  let map = [];
+  let rooms = [];
+  let items = []; // Stores objects: {x, y, type}
+  let stairs = {x: 0, y: 0}; // Location of stairs
 
-  function calculateMapSize() {
-    // These values might need tweaking based on actual font size and screen real estate
-    const charWidthEstimate = 0.035 * window.innerWidth; // Assuming 3.5vw font size
-    const charHeightEstimate = 0.05 * window.innerHeight; // A rough estimate for line height
+  let player = {
+    x: 0, y: 0,
+    hp: 10,
+    maxHp: 10,
+    hunger: 100,
+    inventory: [], // Stores item objects {type: 'potion', count: 1}
+    hasSword: false,
+    level: 1
+  };
 
-    W = Math.floor(window.innerWidth / charWidthEstimate);
-    H = Math.floor((window.innerHeight * 0.7) / charHeightEstimate); // Use about 70% of height for the map
-    if (W < 20) W = 20; // Minimum width
-    if (H < 15) H = 15; // Minimum height
+  // --- Utility Functions ---
+  function rand(min, max) {
+    return min + Math.floor(Math.random() * (max - min + 1));
   }
 
-  function initGame() {
-    calculateMapSize();
-    // (You'd have your map generation, room creation, enemy placement here)
-    // For now, let's just create a simple map
-    map = Array(H).fill(0).map(() => Array(W).fill('#')); // Fill with walls
-    // Place player in a random spot (for demonstration)
-    player.x = rand(1, W - 2);
-    player.y = rand(1, H - 2);
-    map[player.y][player.x] = '@'; // Player character
-    updateDisplay();
-    updateInfo();
+  // --- Map Generation ---
+  function createRoom(x, y, w, h) {
+    return { x: x, y: y, w: w, h: h };
+  }
+
+  function generateMap() {
+    map = Array(H).fill(0).map(() => Array(W).fill(TILE_WALL));
+    rooms = [];
+    items = []; // Clear items for new level
+
+    const MAX_ROOMS = 10;
+    const MIN_ROOM_SIZE = 5;
+    const MAX_ROOM_SIZE = 12;
+
+    for (let i = 0; i < MAX_ROOMS; i++) {
+      const rw = rand(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+      const rh = rand(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+      const rx = rand(1, W - rw - 1);
+      const ry = rand(1, H - rh - 1);
+
+      const newRoom = createRoom(rx, ry, rw, rh);
+
+      let overlaps = false;
+      for (const room of rooms) {
+        // Simple overlap check with a small buffer
+        if (newRoom.x <= room.x + room.w + 1 &&
+            newRoom.x + newRoom.w >= room.x - 1 &&
+            newRoom.y <= room.y + room.h + 1 &&
+            newRoom.y + newRoom.h >= room.y - 1) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (!overlaps) {
+        rooms.push(newRoom);
+        // Carve out the room
+        for (let y = newRoom.y; y < newRoom.y + newRoom.h; y++) {
+          for (let x = newRoom.x; x < newRoom.x + newRoom.w; x++) {
+            map[y][x] = TILE_EMPTY;
+          }
+        }
+      }
+    }
+
+    // Connect rooms with tunnels
+    for (let i = 0; i < rooms.length - 1; i++) {
+      const r1 = rooms[i];
+      const r2 = rooms[i + 1];
+
+      // Get center points
+      const p1x = rand(r1.x + 1, r1.x + r1.w - 2);
+      const p1y = rand(r1.y + 1, r1.y + r1.h - 2);
+      const p2x = rand(r2.x + 1, r2.x + r2.w - 2);
+      const p2y = rand(r2.y + 1, r2.y + r2.h - 2);
+
+      // Horizontal tunnel
+      for (let x = Math.min(p1x, p2x); x <= Math.max(p1x, p2x); x++) {
+        if (map[p1y] && map[p1y][x] !== undefined) {
+          map[p1y][x] = TILE_EMPTY;
+        }
+      }
+      // Vertical tunnel
+      for (let y = Math.min(p1y, p2y); y <= Math.max(p1y, p2y); y++) {
+        if (map[y] && map[y][p2x] !== undefined) {
+          map[y][p2x] = TILE_EMPTY;
+        }
+      }
+    }
+
+    // Place player in the first room
+    if (rooms.length > 0) {
+      const firstRoom = rooms[0];
+      player.x = rand(firstRoom.x + 1, firstRoom.x + firstRoom.w - 2);
+      player.y = rand(firstRoom.y + 1, firstRoom.y + firstRoom.h - 2);
+    } else {
+        // Fallback if no rooms were created (shouldn't happen with proper generation)
+        player.x = rand(1, W - 2);
+        player.y = rand(1, H - 2);
+    }
+
+    // Place stairs in the last room (or near it)
+    if (rooms.length > 1) {
+      const lastRoom = rooms[rooms.length - 1];
+      stairs.x = rand(lastRoom.x + 1, lastRoom.x + lastRoom.w - 2);
+      stairs.y = rand(lastRoom.y + 1, lastRoom.y + lastRoom.h - 2);
+      map[stairs.y][stairs.x] = TILE_STAIRS;
+    } else if (rooms.length === 1) {
+      // If only one room, place stairs in it but not on player
+      const room = rooms[0];
+      do {
+        stairs.x = rand(room.x + 1, room.x + room.w - 2);
+        stairs.y = rand(room.y + 1, room.y + room.h - 2);
+      } while (stairs.x === player.x && stairs.y === player.y);
+      map[stairs.y][stairs.x] = TILE_STAIRS;
+    } else {
+      // If no rooms at all, place stairs randomly (fallback)
+      stairs.x = rand(1, W - 2);
+      stairs.y = rand(1, H - 2);
+      map[stairs.y][stairs.x] = TILE_STAIRS;
+    }
+
+
+    // Place some items
+    for (let i = 0; i < 5; i++) { // 5 items
+      let itemX, itemY, itemType;
+      do {
+        itemX = rand(1, W - 2);
+        itemY = rand(1, H - 2);
+      } while (map[itemY][itemX] !== TILE_EMPTY || (itemX === player.x && itemY === player.y)); // Don't place on walls or player
+
+      const itemRoll = rand(1, 100);
+      if (itemRoll <= 40) { // 40% chance potion
+        itemType = 'potion';
+        map[itemY][itemX] = TILE_POTION;
+      } else if (itemRoll <= 80) { // 40% chance food
+        itemType = 'food';
+        map[itemY][itemX] = TILE_FOOD;
+      } else { // 20% chance sword
+        itemType = 'sword';
+        map[itemY][itemX] = TILE_SWORD;
+      }
+      items.push({ x: itemX, y: itemY, type: itemType });
+    }
+  }
+
+  // --- Game Loop & Rendering ---
+  function calculateMapSize() {
+    const gameDiv = document.getElementById('game');
+    // Adjust these multipliers based on your font-size in CSS (3.5vw) and line-height (1.1)
+    // These are approximations; fine-tune for exact fit.
+    const charWidth = window.innerWidth * 0.035;
+    const charHeight = charWidth * 1.1; // Estimate char height based on width and line-height
+
+    W = Math.floor(window.innerWidth / charWidth) - 2; // Subtract a bit for padding/safety
+    H = Math.floor((window.innerHeight * 0.6) / charHeight) - 2; // Use ~60% of height for map, subtract safety
+    if (W < 30) W = 30; // Minimum width
+    if (H < 20) H = 20; // Minimum height
   }
 
   function updateDisplay() {
     let displayMap = map.map(row => [...row]); // Create a copy to modify for display
-    displayMap[player.y][player.x] = '@'; // Ensure player is drawn
 
-    // Draw enemies (simple example)
-    enemies.forEach(e => {
-      if (e.hp > 0) {
-        displayMap[e.y][e.x] = 'E'; // Example enemy char
+    // Draw items
+    items.forEach(item => {
+      // Only draw if the item hasn't been picked up (i.e., its tile is still its item char)
+      if (map[item.y][item.x] === TILE_POTION || map[item.y][item.x] === TILE_FOOD || map[item.y][item.x] === TILE_SWORD) {
+         displayMap[item.y][item.x] = map[item.y][item.x]; // Draw the actual item char
       }
     });
 
-    // Draw items (simple example)
-    items.forEach(item => {
-      displayMap[item.y][item.x] = item.char; // Example item char (e.g., 'P' for potion)
-    });
+    // Draw stairs
+    displayMap[stairs.y][stairs.x] = TILE_STAIRS;
 
+    // Draw player last so they are always on top
+    displayMap[player.y][player.x] = TILE_PLAYER;
 
-    // Center the map in the display
-    let gameDiv = document.getElementById('game');
-    let mapString = displayMap.map(row => row.join('')).join('\n');
-    gameDiv.textContent = mapString;
+    document.getElementById('game').textContent = displayMap.map(row => row.join('')).join('\n');
   }
 
   function updateInfo() {
-    let infoDiv = document.getElementById('info');
-    infoDiv.textContent = `Level: ${level} | HP: ${player.hp} | Hunger: ${player.hunger} | Sword: ${player.sword ? '✓' : '✗'}`;
+    const inventoryString = player.inventory.map(item => `${item.type.charAt(0).toUpperCase()}${item.count}`).join(', ');
+    document.getElementById('info').textContent =
+      `Level: ${player.level} | HP: ${player.hp}/${player.maxHp} | Hunger: ${player.hunger} | Sword: ${player.hasSword ? '✓' : '✗'} | Inv: [${inventoryString}]`;
   }
 
-  function move(dx, dy) {
-    let newX = player.x + dx;
-    let newY = player.y + dy;
+  function gameOver() {
+    alert("Game Over! You died.");
+    player.hp = player.maxHp; // Reset HP
+    player.hunger = 100; // Reset hunger
+    player.inventory = []; // Clear inventory
+    player.hasSword = false; // Unequip sword
+    player.level = 1; // Reset level
+    initGame(); // Restart game
+  }
 
-    // Basic boundary and wall collision
-    if (newX >= 0 && newX < W && newY >= 0 && newY < H && map[newY][newX] !== '#') {
-      player.x = newX;
-      player.y = newY;
-      // You'd add logic here for:
-      // - Picking up items
-      // - Attacking enemies
-      // - Going down stairs
-      // - Hunger reduction
-      // - Enemy movement
-      // - Etc.
-      updateDisplay();
+  function nextLevel() {
+      player.level++;
+      player.hp = player.maxHp; // Heal on level up
+      player.hunger = 100; // Refill hunger
+      alert(`Congratulations! You reached Level ${player.level}!`);
+      initGame(); // Generate new map
+  }
+
+  // --- Player Actions ---
+  function movePlayer(dx, dy) {
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+
+    // Check map boundaries
+    if (newX < 0 || newX >= W || newY < 0 || newY >= H) {
+      return; // Can't move out of bounds
+    }
+
+    const targetTile = map[newY][newX];
+
+    if (targetTile === TILE_WALL) {
+      return; // Can't move into walls
+    }
+
+    // Update player position
+    player.x = newX;
+    player.y = newY;
+
+    // --- Interaction Logic ---
+    // Check for items
+    const itemIndex = items.findIndex(item => item.x === player.x && item.y === player.y);
+    if (itemIndex !== -1) {
+      const pickedItem = items[itemIndex];
+      // Add to inventory or handle sword directly
+      if (pickedItem.type === 'sword') {
+        player.hasSword = true;
+        alert("You found a sword!");
+      } else {
+        const existingItem = player.inventory.find(invItem => invItem.type === pickedItem.type);
+        if (existingItem) {
+          existingItem.count++;
+        } else {
+          player.inventory.push({ type: pickedItem.type, count: 1 });
+        }
+        alert(`You picked up a ${pickedItem.type}!`);
+      }
+      // Remove item from map and items array
+      map[pickedItem.y][pickedItem.x] = TILE_EMPTY; // Make the tile empty again
+      items.splice(itemIndex, 1);
+    }
+
+    // Check for stairs
+    if (player.x === stairs.x && player.y === stairs.y) {
+        nextLevel();
+        return; // Stop further processing for this turn as map is new
+    }
+
+    // Hunger decreases with each move
+    player.hunger--;
+    if (player.hunger <= 0) {
+      player.hp--; // Lose HP if starving
+      if (player.hp <= 0) {
+        gameOver();
+        return; // Game ended
+      }
+    }
+
+    // Update display and info after every move
+    updateDisplay();
+    updateInfo();
+  }
+
+  function useItem(type) {
+    const itemInInv = player.inventory.find(item => item.type === type);
+
+    if (itemInInv && itemInInv.count > 0) {
+      if (type === 'potion') {
+        player.hp = Math.min(player.maxHp, player.hp + 5); // Heal 5 HP, not exceeding max
+        alert("You used a potion!");
+      } else if (type === 'food') {
+        player.hunger = Math.min(100, player.hunger + 25); // Restore 25 hunger, not exceeding max
+        alert("You ate some food!");
+      }
+      itemInInv.count--;
+      // Remove item from inventory if count reaches 0
+      if (itemInInv.count === 0) {
+        player.inventory = player.inventory.filter(item => item.type !== type);
+      }
+    } else {
+      alert(`You don't have any ${type}s!`);
+    }
+    updateInfo();
+  }
+
+  function toggleEquipSword() {
+      // This button now only shows if you have the sword.
+      // The sword is automatically "equipped" when picked up.
+      // This function can be used if you want to add a mechanic to unequip it for some reason.
+      // For now, it simply toggles the state of 'hasSword'.
+      if (player.hasSword) {
+          player.hasSword = !player.hasSword;
+          alert(`Sword ${player.hasSword ? 'equipped' : 'unequipped'}!`);
+      } else {
+          alert("You don't have a sword to toggle!");
+      }
       updateInfo();
+  }
+
+
+  // --- Event Listeners ---
+  function handleKeyDown(event) {
+    switch (event.key) {
+      case 'ArrowUp':
+        movePlayer(0, -1);
+        break;
+      case 'ArrowDown':
+        movePlayer(0, 1);
+        break;
+      case 'ArrowLeft':
+        movePlayer(-1, 0);
+        break;
+      case 'ArrowRight':
+        movePlayer(1, 0);
+        break;
+      case 'p': // P for Potion
+        useItem('potion');
+        break;
+      case 'f': // F for Food
+        useItem('food');
+        break;
+      case 's': // S for Sword (toggle)
+        toggleEquipSword();
+        break;
     }
   }
 
-  function usePotion() {
-    alert("Using a potion! (Logic to be implemented)");
-    // Example: player.hp = Math.min(10, player.hp + 5);
+  // --- Game Initialization ---
+  function initGame() {
+    calculateMapSize();
+    generateMap();
+    updateDisplay();
     updateInfo();
   }
 
-  function equipSword() {
-    player.sword = !player.sword; // Toggle sword
-    alert(`Sword ${player.sword ? 'equipped' : 'unequipped'}!`);
-    updateInfo();
-  }
-
-  function eatFood() {
-    alert("Eating food! (Logic to be implemented)");
-    // Example: player.hunger = Math.min(100, player.hunger + 20);
-    updateInfo();
-  }
-
-  // Initialize the game when the page loads
-  window.onload = initGame;
-  window.onresize = initGame; // Recalculate map size on resize
+  // Start the game when the window loads
+  window.onload = () => {
+    initGame();
+    window.addEventListener('keydown', handleKeyDown); // Listen for keyboard input
+    window.addEventListener('resize', initGame); // Recalculate and regenerate map on resize
+  };
 </script>
 </body>
 </html>
