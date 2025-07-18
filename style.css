@@ -1,0 +1,54 @@
+body {
+  background: black;
+  color: lightgreen;
+  font-family: monospace;
+  margin: 0;
+  overflow: hidden;
+  user-select: none;
+}
+#game {
+  line-height: 1.1;
+  font-size: 3.5vw;
+  white-space: pre;
+  text-align: center;
+  margin-top: 10px;
+}
+#info {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  font-size: 4vw;
+}
+#inventory {
+  position: absolute;
+  top: 65%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  z-index: 10;
+}
+button {
+  font-size: 4vw;
+  padding: 6px;
+  background: #222;
+  color: lightgreen;
+  border: 1px solid #555;
+  border-radius: 6px;
+}
+#dpad {
+  position: absolute;
+  top: 80%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  z-index: 10;
+}
+#dpad > div {
+  display: flex;
+  gap: 20px;
+}
